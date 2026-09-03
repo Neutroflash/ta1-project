@@ -28,6 +28,7 @@ npm run lint && npm run typecheck && npm run test:unit
 
 | Archivo | Descripción |
 |---|---|
+| [`docs/flujo-desde-el-push.md`](docs/flujo-desde-el-push.md) | Recorrido de un cambio desde `git push` hasta producción, con los tiempos y resultados de corridas reales |
 | [`docs/parte2-cicd.md`](docs/parte2-cicd.md) | Informe completo: contexto, necesidades, diagrama del flujo, etapas y justificación técnica |
 | [`docs/parte2-cicd.html`](docs/parte2-cicd.html) | El mismo informe con el diagrama vectorial |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Integración continua: calidad estática, compilación, pruebas unitarias y de integración, seguridad e imagen Docker |
