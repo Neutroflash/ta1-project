@@ -1,0 +1,437 @@
+<title>MediTurno CI/CD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --ground:#F4F7F5; --surface:#FFFFFF; --surface-2:#EAF1ED;
+    --ink:#13211D; --muted:#586C66; --rule:#D6E1DC;
+    --accent:#0E7C66; --accent-soft:#E1F0EA; --danger:#A93226; --warn:#8A5A12;
+    --display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+    --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D1513; --surface:#141F1C; --surface-2:#1B2825;
+      --ink:#E4EDE9; --muted:#94A8A2; --rule:#25332F;
+      --accent:#48C4A3; --accent-soft:#12302A; --danger:#E58C82; --warn:#D9A441;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1513; --surface:#141F1C; --surface-2:#1B2825;
+    --ink:#E4EDE9; --muted:#94A8A2; --rule:#25332F;
+    --accent:#48C4A3; --accent-soft:#12302A; --danger:#E58C82; --warn:#D9A441;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--body);
+       font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .doc{max-width:980px;margin:0 auto;padding:56px 28px 96px;
+       display:flex;flex-direction:column;gap:52px}
+  .prose{max-width:68ch}
+  p{margin:0 0 1em}
+  p:last-child{margin-bottom:0}
+  a{color:var(--accent)}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-2);
+       padding:1px 5px;border-radius:4px}
+
+  /* ---------- Encabezado ---------- */
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,5vw,50px);
+     line-height:1.05;letter-spacing:-.02em;margin:0 0 18px;text-wrap:balance}
+  .lede{font-size:19px;color:var(--muted);max-width:60ch;margin:0}
+  .ficha{margin:26px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+         gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+  .ficha div{background:var(--surface);padding:12px 14px}
+  .ficha dt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+            text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+  .ficha dd{margin:0;font-family:var(--display);font-weight:600;font-size:14.5px}
+
+  /* ---------- Secciones ---------- */
+  section{display:flex;flex-direction:column;gap:20px}
+  .head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--rule);padding-bottom:10px}
+  .num{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:700}
+  h2{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:-.01em;margin:0}
+  h3{font-family:var(--display);font-weight:600;font-size:17px;margin:6px 0 -6px}
+
+  /* ---------- Listas ---------- */
+  ul.dolor{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;max-width:68ch}
+  ul.dolor li{padding-left:26px;position:relative}
+  ul.dolor li::before{content:"";position:absolute;left:6px;top:.62em;width:7px;height:7px;
+                      border-radius:50%;background:var(--danger)}
+  ul.dolor b{font-family:var(--display);font-weight:600}
+
+  /* ---------- Figura ---------- */
+  figure{margin:0;background:var(--surface);border:1px solid var(--rule);
+         border-radius:10px;padding:22px}
+  .lienzo{overflow-x:auto}
+  svg.flujo{display:block;width:100%;min-width:640px;height:auto;color:var(--ink)}
+  figcaption{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule);
+             font-size:14.5px;color:var(--muted)}
+
+  /* ---------- Tablas ---------- */
+  .tabla{overflow-x:auto;border:1px solid var(--rule);border-radius:10px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:600px;font-size:14.5px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+  thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+           color:var(--muted);background:var(--surface-2);font-weight:500;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  td.num-col,th.num-col{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  td code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);
+          padding:1px 5px;border-radius:4px}
+  tr.elegida td{background:var(--accent-soft)}
+  tr.elegida td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .marca{font-family:var(--display);font-weight:700;color:var(--accent)}
+
+  /* ---------- Decisiones ---------- */
+  .decisiones{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+  .decision{border-left:2px solid var(--accent);padding:2px 0 2px 16px}
+  .decision h3{margin:0 0 6px}
+  .decision p{font-size:15px;color:var(--muted);margin:0}
+  .decision p em{color:var(--ink);font-style:normal;font-weight:600}
+
+  /* ---------- Archivos ---------- */
+  .archivos{display:flex;flex-direction:column;gap:10px;max-width:68ch}
+  .archivo{display:flex;gap:14px;align-items:baseline;padding:12px 16px;background:var(--surface);
+           border:1px solid var(--rule);border-radius:8px}
+  .archivo code{font-family:var(--mono);font-size:13px;font-weight:500;white-space:nowrap}
+  .archivo span{font-size:14.5px;color:var(--muted)}
+
+  footer{border-top:1px solid var(--rule);padding-top:18px;font-size:13.5px;color:var(--muted)}
+</style>
+
+<main class="doc">
+
+  <header>
+    <p class="eyebrow">Parte 2 · Caso de estudio y diseño de flujo CI/CD</p>
+    <h1>MediTurno: de un despliegue manual los viernes a diez entregas por semana</h1>
+    <p class="lede">Caso ficticio. Diseño de un flujo de integración y despliegue continuo
+      sobre GitHub Actions para un SaaS de agendamiento clínico, con compilación,
+      pruebas automatizadas y despliegue real a AWS.</p>
+    <dl class="ficha">
+      <div><dt>Empresa</dt><dd>MediTurno SpA</dd></div>
+      <div><dt>Producto</dt><dd>SaaS multi-inquilino</dd></div>
+      <div><dt>Equipo</dt><dd>7 personas</dd></div>
+      <div><dt>Herramienta</dt><dd>GitHub Actions</dd></div>
+      <div><dt>Destino</dt><dd>AWS ECS Fargate</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="head"><span class="num">01</span><h2>Contexto de la empresa</h2></div>
+    <div class="prose">
+      <p><b>MediTurno</b> es una empresa de siete personas que vende un sistema web de
+        agendamiento de horas médicas a clínicas y consultas privadas pequeñas. Hoy tiene
+        <b>34 clínicas activas</b> y unas 40.000 reservas mensuales. El software es un SaaS
+        multi-inquilino: una sola instalación atiende a todos los clientes, separados por
+        identificador de clínica en la base de datos.</p>
+      <p>Es un producto en horario crítico: entre las 08:00 y las 20:00 hábiles, una caída
+        significa mesones de recepción anotando pacientes en papel. Fuera de ese horario el
+        tráfico es marginal, lo que abre una ventana natural para desplegar, pero el equipo
+        quiere dejar de depender de ella.</p>
+    </div>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Dimensión</th><th>Situación actual</th></tr></thead>
+        <tbody>
+          <tr><td>Tipo de software</td><td>Aplicación web SaaS multi-inquilino (B2B), con API pública para integrar fichas clínicas de terceros</td></tr>
+          <tr><td>Stack</td><td>API en TypeScript sobre NestJS · frontend React + Vite · PostgreSQL 16 · Redis para colas de recordatorios · todo empaquetado en Docker</td></tr>
+          <tr><td>Equipo de desarrollo</td><td>1 tech lead, 3 backend, 2 frontend, 1 QA. <b>No hay equipo de operaciones</b>: la infraestructura la mantiene el tech lead a tiempo parcial</td></tr>
+          <tr><td>Repositorio</td><td>Monorepo en GitHub (<code>apps/api</code>, <code>apps/web</code>, <code>packages/shared</code>), flujo <i>trunk-based</i> con ramas cortas y PR obligatorio</td></tr>
+          <tr><td>Ambientes</td><td><code>staging</code> (réplica reducida, datos sintéticos) y <code>producción</code> (ECS Fargate, multi-AZ)</td></tr>
+          <tr><td>Restricción normativa</td><td>Datos sensibles de salud: se exige trazabilidad de quién desplegó qué y cuándo, y respaldo previo a cada cambio de esquema</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">02</span><h2>Necesidades de despliegue</h2></div>
+    <div class="prose"><p>El proceso actual es manual: el tech lead compila en su equipo,
+      copia el artefacto al servidor y ejecuta las migraciones a mano, los viernes por la
+      noche. De ahí salen los problemas que este flujo debe resolver:</p></div>
+    <ul class="dolor">
+      <li><b>Cuello de botella en una sola persona.</b> Si el tech lead está con licencia, nada sale a producción. La correcciones urgentes esperan.</li>
+      <li><b>Lotes grandes y riesgosos.</b> Una semana de cambios entra junta; cuando algo falla, nadie sabe cuál de los 30 <i>commits</i> lo rompió.</li>
+      <li><b>Sin vuelta atrás confiable.</b> El rollback consiste en volver a compilar la versión anterior: entre 40 y 60 minutos con el sistema degradado.</li>
+      <li><b>Pruebas que se ejecutan “cuando alcanza el tiempo”.</b> La suite existe, pero se corre en local y de forma inconsistente.</li>
+      <li><b>Migraciones sin red de seguridad.</b> Dos incidentes en el último año por un cambio de esquema aplicado sin respaldo previo.</li>
+      <li><b>Trazabilidad insuficiente para auditoría.</b> No hay registro formal que vincule una versión en producción con el código y la aprobación que la originaron.</li>
+    </ul>
+    <div class="prose"><p>De ahí los objetivos concretos del diseño: <b>desplegar en cualquier
+      momento del día hábil sin caída perceptible</b>, que <b>cualquier integrante del equipo pueda
+      liberar</b>, que <b>ningún cambio llegue a producción sin pruebas verdes</b>, y que
+      <b>revertir tome menos de cinco minutos</b>.</p></div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">03</span><h2>Diagrama del flujo</h2></div>
+    <figure>
+      <div class="lienzo">
+      <svg class="flujo" viewBox="0 0 720 872" role="img"
+           aria-label="Flujo CI/CD de MediTurno: desde el push en una rama de trabajo, la integración continua ejecuta calidad estática y luego, en paralelo, compilación, pruebas unitarias, pruebas de integración y análisis de seguridad, que convergen en una imagen Docker etiquetada con el SHA. Tras la revisión humana y el merge a main, el despliegue a staging es automático con migraciones, ECS y pruebas de humo. Una aprobación manual habilita producción: respaldo, despliegue blue/green, verificación de cinco minutos con rollback automático si falla, y etiquetado de la versión.">
+        <defs>
+          <marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"></path>
+          </marker>
+          <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"></path>
+          </marker>
+          <marker id="fd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--danger)"></path>
+          </marker>
+        </defs>
+
+        <g font-family="'JetBrains Mono', monospace" font-size="10" letter-spacing="0.09em" fill="currentColor" opacity="0.55">
+          <text x="30" y="112">INTEGRACIÓN CONTINUA · EN CADA PULL REQUEST</text>
+          <text x="690" y="112" text-anchor="end">≈ 8 min</text>
+          <text x="30" y="470">ENTREGA CONTINUA · STAGING AUTOMÁTICO</text>
+          <text x="690" y="470" text-anchor="end">≈ 5 min</text>
+          <text x="30" y="688">DESPLIEGUE A PRODUCCIÓN · BLUE / GREEN</text>
+          <text x="690" y="688" text-anchor="end">≈ 6 min</text>
+        </g>
+
+        <!-- inicio -->
+        <rect x="250" y="16" width="220" height="38" rx="19" fill="var(--surface-2)" stroke="currentColor" stroke-opacity="0.35"></rect>
+        <text x="360" y="40" text-anchor="middle" font-family="'Familjen Grotesk', sans-serif" font-size="13" font-weight="600" fill="currentColor">git push · rama de trabajo</text>
+        <line x1="360" y1="54" x2="360" y2="86" stroke="currentColor" stroke-width="1.5" marker-end="url(#f)"></line>
+
+        <!-- banda CI -->
+        <rect x="16" y="90" width="688" height="252" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.28" stroke-dasharray="4 4"></rect>
+
+        <rect x="200" y="126" width="320" height="36" rx="6" fill="var(--surface-2)" stroke="currentColor" stroke-opacity="0.35"></rect>
+        <text x="360" y="149" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="11.5" fill="currentColor">lint · prettier · tsc --noEmit</text>
+
+        <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#f)">
+          <path d="M360 162 V 180 H 108 V 196"></path>
+          <path d="M360 162 V 180 H 276 V 196"></path>
+          <path d="M360 162 V 180 H 444 V 196"></path>
+          <path d="M360 162 V 180 H 612 V 196"></path>
+        </g>
+
+        <g>
+          <rect x="30" y="198" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="198" y="198" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="366" y="198" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="534" y="198" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+        </g>
+        <g text-anchor="middle" font-family="'Familjen Grotesk', sans-serif" font-size="12.5" font-weight="600" fill="currentColor">
+          <text x="108" y="221">Compilación</text>
+          <text x="276" y="221">Unitarias · Jest</text>
+          <text x="444" y="221">Integración</text>
+          <text x="612" y="221">Seguridad</text>
+        </g>
+        <g text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="currentColor" opacity="0.62">
+          <text x="108" y="238">api + web</text>
+          <text x="276" y="238">cobertura ≥ 80%</text>
+          <text x="444" y="238">PostgreSQL 16</text>
+          <text x="612" y="238">CodeQL · Trivy</text>
+        </g>
+
+        <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#f)">
+          <path d="M108 252 V 268 H 360 V 286"></path>
+          <path d="M276 252 V 268 H 360 V 286"></path>
+          <path d="M444 252 V 268 H 360 V 286"></path>
+          <path d="M612 252 V 268 H 360 V 286"></path>
+        </g>
+
+        <rect x="170" y="288" width="380" height="38" rx="6" fill="var(--surface-2)" stroke="currentColor" stroke-opacity="0.35"></rect>
+        <text x="360" y="312" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="11" fill="currentColor">docker build → ghcr.io/mediturno/api:$SHA</text>
+
+        <line x1="360" y1="342" x2="360" y2="368" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#fa)"></line>
+
+        <!-- puerta 1 -->
+        <rect x="140" y="370" width="440" height="50" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-dasharray="5 4"></rect>
+        <text x="360" y="391" text-anchor="middle" font-family="'Familjen Grotesk', sans-serif" font-size="13" font-weight="600" fill="var(--accent)">Puerta 1 — revisión de código por un par</text>
+        <text x="360" y="408" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="var(--accent)" opacity="0.85">todos los checks en verde para hacer merge a main</text>
+
+        <line x1="360" y1="420" x2="360" y2="446" stroke="currentColor" stroke-width="1.5" marker-end="url(#f)"></line>
+
+        <!-- banda staging -->
+        <rect x="16" y="448" width="688" height="112" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.28" stroke-dasharray="4 4"></rect>
+        <g>
+          <rect x="32" y="482" width="208" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="256" y="482" width="208" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="480" y="482" width="208" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+        </g>
+        <g text-anchor="middle" font-family="'Familjen Grotesk', sans-serif" font-size="12.5" font-weight="600" fill="currentColor">
+          <text x="136" y="505">Migraciones</text>
+          <text x="360" y="505">ECS Fargate · staging</text>
+          <text x="584" y="505">Pruebas de humo</text>
+        </g>
+        <g text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="currentColor" opacity="0.62">
+          <text x="136" y="522">reversibles</text>
+          <text x="360" y="522">wait services-stable</text>
+          <text x="584" y="522">playwright @smoke</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.4" marker-end="url(#f)">
+          <line x1="240" y1="509" x2="254" y2="509"></line>
+          <line x1="464" y1="509" x2="478" y2="509"></line>
+        </g>
+
+        <line x1="360" y1="560" x2="360" y2="586" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#fa)"></line>
+
+        <!-- puerta 2 -->
+        <rect x="140" y="588" width="440" height="50" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-dasharray="5 4"></rect>
+        <text x="360" y="609" text-anchor="middle" font-family="'Familjen Grotesk', sans-serif" font-size="13" font-weight="600" fill="var(--accent)">Puerta 2 — aprobación manual del release</text>
+        <text x="360" y="626" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="var(--accent)" opacity="0.85">GitHub Environments · aprobador distinto del autor</text>
+
+        <line x1="360" y1="638" x2="360" y2="664" stroke="currentColor" stroke-width="1.5" marker-end="url(#f)"></line>
+
+        <!-- banda producción -->
+        <rect x="16" y="666" width="688" height="158" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.28" stroke-dasharray="4 4"></rect>
+        <g>
+          <rect x="30" y="700" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="198" y="700" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="366" y="700" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+          <rect x="534" y="700" width="156" height="54" rx="6" fill="var(--surface)" stroke="currentColor" stroke-opacity="0.4"></rect>
+        </g>
+        <g text-anchor="middle" font-family="'Familjen Grotesk', sans-serif" font-size="12.5" font-weight="600" fill="currentColor">
+          <text x="108" y="723">Respaldo RDS</text>
+          <text x="276" y="723">Blue / Green</text>
+          <text x="444" y="723">Verificación</text>
+          <text x="612" y="723">Etiqueta + aviso</text>
+        </g>
+        <g text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="currentColor" opacity="0.62">
+          <text x="108" y="740">snapshot previo</text>
+          <text x="276" y="740">codedeploy</text>
+          <text x="444" y="740">5 min de métricas</text>
+          <text x="612" y="740">git tag · slack</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.4" marker-end="url(#f)">
+          <line x1="186" y1="727" x2="196" y2="727"></line>
+          <line x1="354" y1="727" x2="364" y2="727"></line>
+          <line x1="522" y1="727" x2="532" y2="727"></line>
+        </g>
+
+        <path d="M444 754 V 782 H 276 V 758" fill="none" stroke="var(--danger)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#fd)"></path>
+        <text x="360" y="800" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="var(--danger)">error &gt; 1% o p95 &gt; 800 ms → rollback automático</text>
+
+        <!-- leyenda -->
+        <g stroke-width="1.5">
+          <line x1="20" y1="850" x2="44" y2="850" stroke="currentColor" marker-end="url(#f)"></line>
+          <line x1="196" y1="850" x2="220" y2="850" stroke="var(--accent)" stroke-dasharray="5 4" marker-end="url(#fa)"></line>
+          <line x1="452" y1="850" x2="476" y2="850" stroke="var(--danger)" stroke-dasharray="5 4" marker-end="url(#fd)"></line>
+        </g>
+        <g font-family="'JetBrains Mono', monospace" font-size="10.5">
+          <text x="52" y="854" fill="currentColor" opacity="0.7">paso automático</text>
+          <text x="228" y="854" fill="var(--accent)">requiere decisión humana</text>
+          <text x="484" y="854" fill="var(--danger)">camino de reversión</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>El cambio atraviesa dos puertas humanas y ninguna recompilación: la imagen
+        etiquetada con el <code>SHA</code> que se construye en la integración continua es exactamente
+        la que se promueve a staging y luego a producción. Del <i>push</i> a producción hay
+        unos 19 minutos de trabajo automático más el tiempo de las dos aprobaciones.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">04</span><h2>Etapas en detalle</h2></div>
+    <div class="tabla">
+      <table>
+        <thead>
+          <tr><th>Etapa</th><th>Qué ejecuta</th><th>Criterio de rechazo</th><th class="num-col">Tiempo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>Calidad estática</b></td><td>ESLint, Prettier y <code>tsc --noEmit</code> sobre todo el monorepo</td><td>Cualquier error de lint, formato o tipos</td><td class="num-col">~1 min</td></tr>
+          <tr><td><b>Compilación</b></td><td>Transpilación de la API (NestJS) y empaquetado del frontend (Vite); el resultado se publica como artefacto de la ejecución</td><td>Fallo de compilación</td><td class="num-col">~2 min</td></tr>
+          <tr><td><b>Pruebas unitarias</b></td><td>Jest en matriz Node 20 y 22, con umbral de cobertura</td><td>Prueba roja o cobertura &lt; 80% de líneas / 75% de ramas</td><td class="num-col">~3 min</td></tr>
+          <tr><td><b>Pruebas de integración</b></td><td>Suite contra PostgreSQL 16 y Redis reales levantados como <i>service containers</i>; incluye aplicar la migración, revertirla y volver a aplicarla</td><td>Prueba roja o migración no reversible</td><td class="num-col">~4 min</td></tr>
+          <tr><td><b>Seguridad</b></td><td>CodeQL (SAST), <code>npm audit</code>, gitleaks y Trivy sobre la imagen construida</td><td>Vulnerabilidad alta o crítica, o secreto filtrado</td><td class="num-col">~3 min</td></tr>
+          <tr><td><b>Empaquetado</b></td><td><code>docker build</code> con caché de capas y publicación en GHCR con la etiqueta del commit</td><td>Fallo de construcción o escaneo de imagen</td><td class="num-col">~2 min</td></tr>
+          <tr><td><b>Despliegue staging</b></td><td>Migraciones, <code>ecs update-service</code> y espera de estabilidad, luego Playwright con las pruebas marcadas <code>@smoke</code></td><td>Servicio inestable o humo rojo (no promueve)</td><td class="num-col">~5 min</td></tr>
+          <tr><td><b>Despliegue producción</b></td><td>Snapshot de RDS, migración compatible hacia atrás, blue/green vía CodeDeploy y verificación de métricas durante 5 minutos</td><td>Tasa de error &gt; 1% o p95 &gt; 800 ms → reversión automática al grupo azul</td><td class="num-col">~6 min</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose"><p>Las etapas 3 a 5 corren en paralelo porque no dependen entre sí; la
+      etapa 1 va sola y primero, ya que un error de tipos invalida todo lo demás y cuesta un
+      minuto detectarlo en vez de ocho.</p></div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">05</span><h2>Justificación técnica</h2></div>
+
+    <h3>Elección de la herramienta</h3>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Opción</th><th>A favor</th><th>En contra para este equipo</th></tr></thead>
+        <tbody>
+          <tr class="elegida">
+            <td><span class="marca">✓</span> <b>GitHub Actions</b></td>
+            <td>El código ya vive en GitHub: cero infraestructura que administrar, los <i>checks</i> se integran con las reglas de protección de rama, <i>Environments</i> aporta la aprobación manual y OIDC elimina las llaves estáticas de AWS</td>
+            <td>Dependencia de un proveedor; el costo por minuto crece si el pipeline se descuida</td>
+          </tr>
+          <tr>
+            <td>Jenkins</td>
+            <td>Máxima flexibilidad y control; sin costo de licencia</td>
+            <td>Exige un servidor, actualizaciones y gestión de <i>plugins</i>: trabajo de operaciones que un equipo sin personal de infraestructura no puede sostener</td>
+          </tr>
+          <tr>
+            <td>GitLab CI</td>
+            <td>Modelo de pipeline maduro y muy buena experiencia en un solo producto</td>
+            <td>Obligaría a migrar el repositorio, las <i>issues</i> y el historial de PR sin ganancia técnica proporcional</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Decisiones de diseño del flujo</h3>
+    <div class="decisiones">
+      <div class="decision">
+        <h3>Un artefacto, tres ambientes</h3>
+        <p>La imagen se construye <em>una sola vez</em> y se etiqueta con el SHA del commit. Staging y producción reciben el mismo binario: si funcionó en staging, lo que llega a producción no es “equivalente”, es idéntico.</p>
+      </div>
+      <div class="decision">
+        <h3>Puerta humana solo en producción</h3>
+        <p>Staging se despliega sin intervención para que el equipo tenga retroalimentación en minutos. La aprobación manual se reserva para el único punto donde hay pacientes reales, y queda registrada: <em>quién aprobó qué versión</em>, que es exactamente la trazabilidad que pide la auditoría.</p>
+      </div>
+      <div class="decision">
+        <h3>Blue/green en vez de reemplazo directo</h3>
+        <p>La versión nueva se levanta en paralelo y el balanceador cambia el tráfico solo cuando pasa el <i>health check</i>. Permite <em>desplegar en horario de atención</em> sin ventana de caída, y revertir es devolver el tráfico al grupo anterior, que sigue vivo.</p>
+      </div>
+      <div class="decision">
+        <h3>Migraciones compatibles hacia atrás</h3>
+        <p>Regla del equipo: toda migración debe funcionar con la versión anterior del código (agregar columna, nunca renombrarla en un solo paso). Sin esto el rollback de código exigiría <em>revertir datos</em>, que es lento y peligroso.</p>
+      </div>
+      <div class="decision">
+        <h3>Verificación antes de declarar el éxito</h3>
+        <p>Un despliegue “exitoso” no es el que terminó sin error, sino el que <em>sostuvo sus métricas cinco minutos</em>. Si la tasa de error o la latencia se degradan, el propio pipeline revierte sin esperar a que llame una clínica.</p>
+      </div>
+      <div class="decision">
+        <h3>Seguridad dentro del pipeline</h3>
+        <p>SAST, dependencias, secretos e imagen se revisan en cada PR, no en una auditoría trimestral. Tratándose de datos de salud, <em>el control tiene que bloquear el merge</em> para ser un control y no un informe.</p>
+      </div>
+    </div>
+
+    <h3>Resultado esperado</h3>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Métrica (DORA)</th><th>Antes</th><th>Con el flujo propuesto</th></tr></thead>
+        <tbody>
+          <tr><td>Frecuencia de despliegue</td><td class="num-col">1 por semana</td><td class="num-col">8 – 10 por semana</td></tr>
+          <tr><td>Tiempo de commit a producción</td><td class="num-col">hasta 5 días</td><td class="num-col">&lt; 1 hora</td></tr>
+          <tr><td>Tiempo de restauración</td><td class="num-col">40 – 60 min</td><td class="num-col">&lt; 5 min</td></tr>
+          <tr><td>Cambios fallidos</td><td class="num-col">~20%</td><td class="num-col">&lt; 8%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><span class="num">06</span><h2>Archivos del entregable</h2></div>
+    <div class="archivos">
+      <div class="archivo"><code>.github/workflows/ci.yml</code><span>Integración continua: calidad estática, compilación, pruebas unitarias y de integración, seguridad e imagen Docker.</span></div>
+      <div class="archivo"><code>.github/workflows/cd.yml</code><span>Entrega y despliegue: staging automático, aprobación manual, blue/green en producción, verificación y rollback.</span></div>
+      <div class="archivo"><code>docs/parte2-cicd.md</code><span>Este mismo informe en texto plano, para adjuntar al trabajo escrito.</span></div>
+    </div>
+  </section>
+
+  <footer>MediTurno SpA es una empresa ficticia creada para este caso de estudio.
+    Los nombres de servicios, umbrales y métricas son ilustrativos y coherentes entre sí,
+    pero no corresponden a un sistema en operación.</footer>
+
+</main>
