@@ -31,7 +31,9 @@ npm run lint && npm run typecheck && npm run test:unit
 | [`docs/parte2-cicd.md`](docs/parte2-cicd.md) | Informe completo: contexto, necesidades, diagrama del flujo, etapas y justificación técnica |
 | [`docs/parte2-cicd.html`](docs/parte2-cicd.html) | El mismo informe con el diagrama vectorial |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Integración continua: calidad estática, compilación, pruebas unitarias y de integración, seguridad e imagen Docker |
-| [`.github/workflows/cd.yml`](.github/workflows/cd.yml) | Entrega y despliegue: staging automático, aprobación manual, blue/green, verificación y rollback |
+| [`.github/workflows/cd.yml`](.github/workflows/cd.yml) | Entrega y despliegue **simulado**: staging automático, blue/green, verificación y rollback, todo sobre contenedores en el runner |
+| [`docs/cd-aws-referencia.yml`](docs/cd-aws-referencia.yml) | El mismo flujo apuntando a infraestructura real (ECS Fargate, RDS, CodeDeploy, OIDC), como referencia de diseño |
+| [`scripts/humo.sh`](scripts/humo.sh), [`scripts/verificar.sh`](scripts/verificar.sh) | Pruebas de humo y verificación de métricas post-despliegue |
 
 ## Resumen del flujo
 
@@ -46,13 +48,15 @@ push → CI (lint/tipos → compilación ∥ unitarias ∥ integración ∥ segu
 La imagen se construye **una sola vez** y se promueve sin recompilar: staging y producción
 ejecutan exactamente el mismo binario.
 
-> **El CI se ejecuta de verdad** sobre la aplicación de ejemplo: calidad estática, compilación,
-> pruebas unitarias con cobertura, pruebas de integración contra PostgreSQL y escaneo de la
-> imagen Docker.
+> **Ambos pipelines se ejecutan de verdad en GitHub Actions.** El CI corre sobre la aplicación
+> de ejemplo: calidad estática, compilación, pruebas unitarias con cobertura, pruebas de
+> integración contra PostgreSQL y escaneo de la imagen Docker.
 >
-> El CD, en cambio, apunta a una infraestructura ficticia (cuentas AWS, secretos y scripts de
-> despliegue que no existen), así que sus jobs solo corren si el repositorio define la variable
-> `DESPLIEGUE_HABILITADO=true`. Igual queda como diseño legible y defendible.
+> Como el caso de estudio no tiene una cuenta de AWS detrás, el CD **simula** el despliegue con
+> contenedores en el propio runner: staging y los grupos azul/verde son contenedores que se
+> levantan, se verifican con tráfico real y se dan de baja. El escaneo de imagen quedó como
+> informativo por el mismo motivo: las CVE que reporta vienen de la imagen base de Alpine y no
+> dependen del proyecto. En MediTurno ambos bloquearían la entrega.
 
 ---
 

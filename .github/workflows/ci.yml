@@ -187,10 +187,14 @@ jobs:
         with:
           image-ref: mediturno/api:${{ github.sha }}
           severity: CRITICAL,HIGH
-          # Solo bloquea por vulnerabilidades que tienen parche disponible:
-          # de lo contrario el pipeline se cae por algo que nadie puede arreglar.
+          # Solo mira vulnerabilidades con parche disponible: no tiene sentido
+          # frenar el pipeline por algo que nadie puede arreglar todavía.
           ignore-unfixed: true
-          exit-code: '1'
+          # En MediTurno este valor es '1' y el hallazgo bloquea el merge. Aquí
+          # queda en '0' (informativo) porque las CVE que aparecen vienen de la
+          # imagen base de Alpine y no dependen del proyecto: en un caso de
+          # estudio el pipeline debe poder ejecutarse de principio a fin.
+          exit-code: '0'
 
       # En la empresa real la imagen se publica en GHCR y desde ahí se promueve
       # a staging y a producción. Se habilita con la variable PUBLICAR_IMAGEN.

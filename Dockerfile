@@ -1,19 +1,30 @@
-# Etapa de compilación: instala todo, compila y descarta el resto.
-FROM node:20-alpine AS build
+# Dependencias de producción, aisladas para copiarlas a la imagen final.
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Compilación: instala todo, genera el bundle y se descarta.
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-# Etapa final: solo dependencias de producción y el bundle.
-FROM node:20-alpine AS runtime
+# Imagen final: solo Node, las dependencias de producción y el bundle.
+FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# En producción no se instala nada, así que npm sobra. Quitarlo elimina de raíz
+# las vulnerabilidades de las dependencias que trae empaquetadas (node-tar),
+# que es lo que hacía fallar el escaneo de Trivy.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY package.json ./
 
 # Nunca como root: ECS ejecuta la tarea con este usuario.
 USER node

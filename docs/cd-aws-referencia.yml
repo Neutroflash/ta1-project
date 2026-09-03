@@ -1,0 +1,125 @@
+# MediTurno — Entrega y Despliegue Continuo
+# Se dispara al integrar en main (post-merge). Staging es automático;
+# producción exige aprobación humana de un revisor distinto al autor.
+
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha_rollback:
+        description: 'SHA a re-desplegar (rollback manual)'
+        required: false
+
+concurrency:
+  # Nunca dos despliegues simultáneos sobre el mismo ambiente.
+  group: cd-produccion
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # STAGING — automático, sin intervención humana.
+  # ---------------------------------------------------------------------------
+  desplegar-staging:
+    name: Desplegar a staging
+    runs-on: ubuntu-latest
+    # La infraestructura de este caso de estudio es ficticia: el despliegue solo
+    # corre si el repositorio define DESPLIEGUE_HABILITADO=true.
+    if: vars.DESPLIEGUE_HABILITADO == 'true'
+    environment:
+      name: staging
+      url: https://staging.mediturno.app
+    permissions:
+      id-token: write # OIDC hacia AWS: sin llaves estáticas en el repositorio
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Autenticación en AWS vía OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::111122223333:role/gh-deploy-staging
+          aws-region: us-east-1
+
+      - name: Migraciones de base de datos
+        run: npm run db:migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: Desplegar servicio en ECS Fargate
+        run: |
+          aws ecs update-service \
+            --cluster mediturno-staging \
+            --service api \
+            --force-new-deployment \
+            --task-definition "$(./scripts/render-taskdef.sh ${{ github.sha }})"
+          aws ecs wait services-stable --cluster mediturno-staging --services api
+
+      - name: Pruebas de humo E2E (Playwright)
+        run: npm run test:e2e -- --grep @smoke
+        env:
+          BASE_URL: https://staging.mediturno.app
+
+  # ---------------------------------------------------------------------------
+  # PRODUCCIÓN — puerta manual + blue/green + verificación + rollback.
+  # ---------------------------------------------------------------------------
+  desplegar-produccion:
+    name: Desplegar a producción
+    runs-on: ubuntu-latest
+    needs: desplegar-staging
+    if: vars.DESPLIEGUE_HABILITADO == 'true'
+    environment:
+      name: produccion # Regla de protección: 1 aprobador requerido
+      url: https://app.mediturno.cl
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::444455556666:role/gh-deploy-prod
+          aws-region: us-east-1
+
+      - name: Respaldo previo de la base de datos
+        run: aws rds create-db-snapshot --db-instance-identifier mediturno-prod
+          --db-snapshot-identifier "pre-deploy-${{ github.sha }}"
+
+      - name: Migraciones compatibles hacia atrás
+        # Regla del equipo: toda migración debe funcionar con la versión
+        # anterior del código, para que el rollback no requiera tocar datos.
+        run: npm run db:migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Despliegue blue/green con CodeDeploy
+        id: deploy
+        run: ./scripts/deploy-blue-green.sh ${{ inputs.sha_rollback || github.sha }}
+
+      - name: Verificación post-despliegue (health + métricas 5 min)
+        id: verificar
+        run: ./scripts/verify-release.sh --error-rate-max 1 --p95-max 800ms
+
+      - name: Rollback automático si la verificación falla
+        if: failure() && steps.deploy.outcome == 'success'
+        run: |
+          ./scripts/deploy-blue-green.sh --rollback
+          echo "ROLLBACK ejecutado sobre ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Etiquetar release
+        if: success()
+        run: |
+          git tag "release-$(date +%Y.%m.%d)-${GITHUB_SHA::7}"
+          git push --tags
+
+      - name: Notificar al equipo en Slack
+        if: always()
+        uses: slackapi/slack-github-action@v4
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {"text": "Despliegue producción ${{ job.status }} — ${{ github.sha }}"}
