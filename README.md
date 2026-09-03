@@ -4,6 +4,26 @@ Entrega de la Parte 2: caso empresarial ficticio (**MediTurno SpA**, SaaS de age
 horas médicas) y diseño de un flujo CI/CD automatizado sobre **GitHub Actions**, con
 compilación, pruebas automatizadas y despliegue a AWS ECS Fargate.
 
+## Aplicación de ejemplo
+
+Para que el pipeline se ejecute de verdad (y no solo describa un diseño), el repositorio
+incluye una implementación mínima de la API de turnos:
+
+| Archivo | Qué hace |
+|---|---|
+| `src/index.js` | Punto de entrada: elige la agenda (memoria o PostgreSQL) y levanta el servidor |
+| `src/agenda.js` | Reglas de negocio: horario 08:00–20:00, bloques de 15 min, sin solapes |
+| `src/servidor.js` | API HTTP: `GET /health`, `GET /api/turnos`, `POST /api/turnos` |
+| `src/db.js` | Misma agenda respaldada por PostgreSQL |
+| `migrations/`, `scripts/migrate.js` | Esquema y migrador reversible (el CI aplica, revierte y reaplica) |
+| `tests/` | 26 pruebas unitarias y 5 de integración contra PostgreSQL real |
+
+```bash
+npm install
+npm start                 # http://localhost:3000/health
+npm run lint && npm run typecheck && npm run test:unit
+```
+
 ## Contenido
 
 | Archivo | Descripción |
@@ -26,9 +46,13 @@ push → CI (lint/tipos → compilación ∥ unitarias ∥ integración ∥ segu
 La imagen se construye **una sola vez** y se promueve sin recompilar: staging y producción
 ejecutan exactamente el mismo binario.
 
-> Los workflows están escritos para ser legibles y defendibles como diseño; describen una
-> infraestructura ficticia (cuentas AWS, secretos y scripts de despliegue no incluidos), por lo
-> que no se ejecutan tal cual en este repositorio.
+> **El CI se ejecuta de verdad** sobre la aplicación de ejemplo: calidad estática, compilación,
+> pruebas unitarias con cobertura, pruebas de integración contra PostgreSQL y escaneo de la
+> imagen Docker.
+>
+> El CD, en cambio, apunta a una infraestructura ficticia (cuentas AWS, secretos y scripts de
+> despliegue que no existen), así que sus jobs solo corren si el repositorio define la variable
+> `DESPLIEGUE_HABILITADO=true`. Igual queda como diseño legible y defendible.
 
 ---
 

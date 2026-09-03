@@ -1,0 +1,5 @@
+# El informe se mantiene con el formato con que se entrega.
+docs/
+README.md
+coverage/
+dist/
