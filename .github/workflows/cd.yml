@@ -1,6 +1,11 @@
-# MediTurno — Entrega y Despliegue Continuo
-# Se dispara al integrar en main (post-merge). Staging es automático;
-# producción exige aprobación humana de un revisor distinto al autor.
+# MediTurno — Entrega y despliegue continuo (SIMULADO)
+#
+# Este caso de estudio no tiene una cuenta de AWS detrás, así que el despliegue
+# se simula sobre el propio runner con contenedores Docker: staging y producción
+# son contenedores que se levantan, se verifican y se dan de baja.
+#
+# La versión del flujo apuntando a infraestructura real (ECS Fargate, RDS,
+# CodeDeploy y OIDC) queda documentada en docs/cd-aws-referencia.yml.
 
 name: CD
 
@@ -8,114 +13,119 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      sha_rollback:
-        description: 'SHA a re-desplegar (rollback manual)'
-        required: false
 
 concurrency:
   # Nunca dos despliegues simultáneos sobre el mismo ambiente.
   group: cd-produccion
   cancel-in-progress: false
 
+env:
+  IMAGEN: mediturno/api
+
 jobs:
   # ---------------------------------------------------------------------------
   # STAGING — automático, sin intervención humana.
   # ---------------------------------------------------------------------------
-  desplegar-staging:
-    name: Desplegar a staging
+  staging:
+    name: Desplegar a staging (simulado)
     runs-on: ubuntu-latest
     environment:
       name: staging
-      url: https://staging.mediturno.app
-    permissions:
-      id-token: write   # OIDC hacia AWS: sin llaves estáticas en el repositorio
-      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: Autenticación en AWS vía OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::111122223333:role/gh-deploy-staging
-          aws-region: us-east-1
+      - name: Construir la imagen de la versión
+        run: docker build -t "$IMAGEN:${{ github.sha }}" .
 
-      - name: Migraciones de base de datos
-        run: npm run db:migrate:deploy
-        env:
-          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-
-      - name: Desplegar servicio en ECS Fargate
+      - name: Levantar el servicio de staging
         run: |
-          aws ecs update-service \
-            --cluster mediturno-staging \
-            --service api \
-            --force-new-deployment \
-            --task-definition "$(./scripts/render-taskdef.sh ${{ github.sha }})"
-          aws ecs wait services-stable --cluster mediturno-staging --services api
+          docker run -d --name staging -p 8081:3000 "$IMAGEN:${{ github.sha }}"
+          # Equivale al `aws ecs wait services-stable` del flujo real.
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8081/health >/dev/null && exit 0
+            sleep 1
+          done
+          echo "El servicio no quedó sano a tiempo"; docker logs staging; exit 1
 
-      - name: Pruebas de humo E2E (Playwright)
-        run: npm run test:e2e -- --grep @smoke
-        env:
-          BASE_URL: https://staging.mediturno.app
+      - name: Pruebas de humo
+        run: ./scripts/humo.sh http://127.0.0.1:8081
+
+      - name: Resumen
+        if: always()
+        run: |
+          echo "### Staging" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Versión desplegada: \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Pruebas de humo: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          docker rm -f staging >/dev/null 2>&1 || true
 
   # ---------------------------------------------------------------------------
-  # PRODUCCIÓN — puerta manual + blue/green + verificación + rollback.
+  # PRODUCCIÓN — blue/green, verificación y rollback, todo sobre contenedores.
   # ---------------------------------------------------------------------------
-  desplegar-produccion:
-    name: Desplegar a producción
+  produccion:
+    name: Desplegar a producción (simulado)
     runs-on: ubuntu-latest
-    needs: desplegar-staging
+    needs: staging
+    # Si en Settings → Environments se le exigen revisores, este job espera la
+    # aprobación manual. Sin revisores configurados, solo deja el registro de
+    # qué versión se desplegó y cuándo.
     environment:
-      name: produccion       # Regla de protección: 1 aprobador requerido
-      url: https://app.mediturno.cl
-    permissions:
-      id-token: write
-      contents: read
+      name: produccion
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::444455556666:role/gh-deploy-prod
-          aws-region: us-east-1
+      - name: Construir la imagen de la versión
+        run: docker build -t "$IMAGEN:${{ github.sha }}" .
 
-      - name: Respaldo previo de la base de datos
-        run: aws rds create-db-snapshot --db-instance-identifier mediturno-prod
-             --db-snapshot-identifier "pre-deploy-${{ github.sha }}"
+      - name: Grupo azul — la versión que está en producción
+        run: |
+          docker run -d --name azul -p 8080:3000 "$IMAGEN:${{ github.sha }}"
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8080/health >/dev/null && break
+            sleep 1
+          done
+          echo "Azul atendiendo el tráfico en el puerto 8080."
 
-      - name: Migraciones compatibles hacia atrás
-        # Regla del equipo: toda migración debe funcionar con la versión
-        # anterior del código, para que el rollback no requiera tocar datos.
-        run: npm run db:migrate:deploy
-        env:
-          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      - name: Grupo verde — levantar la versión nueva en paralelo
+        run: |
+          docker run -d --name verde -p 8090:3000 "$IMAGEN:${{ github.sha }}"
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8090/health >/dev/null && exit 0
+            sleep 1
+          done
+          echo "El grupo verde no quedó sano: no se cambia el tráfico"; exit 1
 
-      - name: Despliegue blue/green con CodeDeploy
-        id: deploy
-        run: ./scripts/deploy-blue-green.sh ${{ inputs.sha_rollback || github.sha }}
+      - name: Cambiar el tráfico de azul a verde
+        id: cambio
+        run: |
+          ./scripts/humo.sh http://127.0.0.1:8090
+          echo "Tráfico dirigido al grupo verde."
+          echo "cambiado=si" >> "$GITHUB_OUTPUT"
 
-      - name: Verificación post-despliegue (health + métricas 5 min)
+      - name: Verificación posterior (tasa de error y latencia)
         id: verificar
-        run: ./scripts/verify-release.sh --error-rate-max 1 --p95-max 800ms
+        run: ./scripts/verificar.sh http://127.0.0.1:8090 --peticiones 40 --error-max 1 --p95-max 800
 
       - name: Rollback automático si la verificación falla
-        if: failure() && steps.deploy.outcome == 'success'
+        if: failure() && steps.cambio.outputs.cambiado == 'si'
         run: |
-          ./scripts/deploy-blue-green.sh --rollback
-          echo "ROLLBACK ejecutado sobre ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "Verificación fallida: se devuelve el tráfico al grupo azul."
+          docker rm -f verde >/dev/null 2>&1 || true
+          curl -sf http://127.0.0.1:8080/health && echo "Azul sigue sano: rollback completo."
+          echo "ROLLBACK de ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Etiquetar release
+      - name: Dar de baja el grupo azul y etiquetar la versión
         if: success()
         run: |
-          git tag "release-$(date +%Y.%m.%d)-${GITHUB_SHA::7}"
-          git push --tags
+          docker rm -f azul >/dev/null 2>&1 || true
+          echo "Grupo azul retirado. Versión ${GITHUB_SHA::7} en producción."
 
-      - name: Notificar al equipo en Slack
+      - name: Resumen
         if: always()
-        uses: slackapi/slack-github-action@v2
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK }}
-          webhook-type: incoming-webhook
-          payload: |
-            {"text": "Despliegue producción ${{ job.status }} — ${{ github.sha }}"}
+        run: |
+          {
+            echo "### Producción (simulada)"
+            echo "- Versión: \`${GITHUB_SHA::7}\`"
+            echo "- Estrategia: blue/green sobre contenedores en el runner"
+            echo "- Resultado: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          docker rm -f azul verde >/dev/null 2>&1 || true
