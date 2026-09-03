@@ -143,6 +143,10 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          # gitleaks recorre el rango de commits del PR: con el clon superficial
+          # que trae checkout por defecto ese rango no existe y el escaneo falla.
+          fetch-depth: 0
       - name: SAST con CodeQL
         uses: github/codeql-action/init@v4
         with:
